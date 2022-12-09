@@ -14,7 +14,6 @@ intents.guilds = True
 bot = discord.Bot(intents=intents)
 app = Quart(__name__)
 Cors = cors(app)
-app.config['JSON_AS_ASCII'] = False
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 
