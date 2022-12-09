@@ -5,6 +5,7 @@ from quart_cors import cors, route_cors
 from threading import Thread
 import discord
 from dotenv import load_dotenv
+import json
 load_dotenv(verbose=True)
 intents = discord.Intents.default()
 intents.members = True
@@ -13,6 +14,7 @@ intents.guilds = True
 bot = discord.Bot(intents=intents)
 app = Quart(__name__)
 Cors = cors(app)
+app.config['JSON_AS_ASCII'] = False
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 
@@ -25,12 +27,17 @@ async def index():
 @route_cors()
 async def members():
     member_id:int = request.args.get("id")
-    print(member_id)
-    guild = bot.get_guild(953953436133650462)
-    print(guild)
-    member = await guild.fetch_member(member_id)
-    print(member)
-    return jsonify({"member": member.name})
+    try:
+        guild = bot.get_guild(953953436133650462)
+        member = await guild.fetch_member(member_id)
+        return json.dumps({"name": member.name, "id": member.id, "avatar": member.display_avatar.url, 
+        "bot": member.bot, "discriminator": member.discriminator, "roles": [role.name for role in member.roles], 
+        "joined_at": member.joined_at.strftime("%Y-%m-%d %H:%M:%S"),"member":True},ensure_ascii=False)
+    except:
+        user = await bot.fetch_user(member_id)
+        return json.dumps({"name": user.name, "id": user.id, "avatar": user.display_avatar.url,
+        "bot": user.bot, "discriminator": user.discriminator,"created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S"),"member":False},
+        ensure_ascii=False)
 
 @app.route('/submit', methods=['POST'])
 @route_cors()
