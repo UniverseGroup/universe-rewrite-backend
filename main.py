@@ -38,6 +38,15 @@ async def index():
 @route_cors()
 async def members():
     member_id:int = request.args.get("id")
+    if member_id is None:
+        users_list = request.args.get("users")
+        print(users_list)
+        user_data = []
+        for user in users_list.split(","):
+            fetch_user = await bot.fetch_user(int(user))
+            user_data.append({"name": fetch_user.name,'discriminator':fetch_user.discriminator, "id": fetch_user.id, "avatar": fetch_user.display_avatar.url,})
+        return json.dumps(user_data,ensure_ascii=False)
+
     try:
         guild = bot.get_guild(953953436133650462)
         member = await guild.fetch_member(member_id)
@@ -48,7 +57,7 @@ async def members():
         "status":member.status},ensure_ascii=False)
     except:
         user = await bot.fetch_user(member_id)
-        return json.dumps({"name": user.name, "id": user.id, "avatar": user.display_avatar.url,
+        return json.dumps({"name": user.name, "id": member_id, "avatar": user.display_avatar.url,
         "bot": user.bot, "discriminator": user.discriminator,"created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S"),"member":False,
         "verified":user.public_flags.verified_bot if user.bot else False,"status":"online"},
         ensure_ascii=False)
@@ -71,6 +80,27 @@ async def submit():
     embed.add_field(name="봇 접두사",value=data['prefix'],inline=False)
     embed.set_author(name=user.name,icon_url=user.display_avatar, url=invite_url)
     embed.set_thumbnail(url=user.display_avatar)
+    await channel.send(content=review_role.mention,embed=embed)
+    return jsonify({"code":200,"msg": "success"})
+
+@app.route('/report', methods=['POST'])
+@route_cors()
+async def report():
+    data = await request.get_json()
+    print(data)
+    botuser = await bot.fetch_user(int(data['botid']))
+    reportuser = await bot.fetch_user(int(data['userid']))
+    if not botuser.bot:
+        return jsonify({"message": "User is not a bot!"})
+    guild = bot.get_guild(1051361439098617927)
+    channel = await guild.fetch_channel(1052248091778109441)
+    review_role = guild.get_role(1051362690339196938)
+    embed = discord.Embed(title="신고된 봇",colour=discord.Colour.red())
+    embed.add_field(name="봇",value=f"{botuser.display_name}({botuser.id})",inline=False)
+    embed.add_field(name="신고자",value=f"{reportuser.display_name}({reportuser.id})",inline=False)
+    embed.add_field(name="신고 카테고리",value=data['category'],inline=False)
+    embed.add_field(name="신고 상세",value=data['description'],inline=False)
+    embed.set_thumbnail(url=botuser.display_avatar)
     await channel.send(content=review_role.mention,embed=embed)
     return jsonify({"code":200,"msg": "success"})
 
