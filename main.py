@@ -4,6 +4,7 @@ from quart import Quart, render_template, jsonify, request
 from quart_cors import cors, route_cors
 from threading import Thread
 import discord
+from discord.ext import tasks
 from dotenv import load_dotenv
 import json
 import motor.motor_asyncio
@@ -104,9 +105,38 @@ async def report():
     await channel.send(content=review_role.mention,embed=embed)
     return jsonify({"code":200,"msg": "success"})
 
+
+
+
+
 @bot.event
 async def on_ready():
     print("bot ready")
+
+
+@tasks.loop(seconds=60)
+async def update_status():
+    print("updating status...")
+    db_bots = await db['bots'].find({'approved':True}).to_list(length=None)
+    for bots in db_bots:
+        guild = bot.get_guild(953953436133650462)
+        member = await guild.fetch_member(int(bots['botid']))
+        botuser = await bot.fetch_user(int(bots['botid']))
+        if member.status == discord.Status.online:
+            await db['bots'].update_one({'botid':bots['botid']},{'$set':{'status':'online','name':botuser.name,'discordVerified':botuser.public_flags.verified_bot}})
+        elif member.status == discord.Status.idle:
+            await db['bots'].update_one({'botid':bots['botid']},{'$set':{'status':'idle','name':botuser.name,'discordVerified':botuser.public_flags.verified_bot}})
+        elif member.status == discord.Status.dnd:
+            await db['bots'].update_one({'botid':bots['botid']},{'$set':{'status':'dnd','name':botuser.name,'discordVerified':botuser.public_flags.verified_bot}})
+        elif member.status == discord.Status.offline:
+            await db['bots'].update_one({'botid':bots['botid']},{'$set':{'status':'offline','name':botuser.name,'discordVerified':botuser.public_flags.verified_bot}})
+        else:
+            await db['bots'].update_one({'botid':bots['botid']},{'$set':{'status':'offline','name':botuser.name,'discordVerified':botuser.public_flags.verified_bot}})
+    print("updated status")
+update_status.start()
+@update_status.before_loop
+async def before_update_status():
+    await bot.wait_until_ready()
 
 @bot.slash_command(guild_ids=[1051361439098617927])
 async def todos(ctx: discord.ApplicationContext):
